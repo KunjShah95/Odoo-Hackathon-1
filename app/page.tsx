@@ -684,6 +684,9 @@ function AppShell({
       </header>
       <div className="shell">
         <aside className="sidebar">
+          <button className="side-brand" onClick={() => setRoute("dashboard")} type="button" aria-label="DealFlow 360 dashboard">
+            <Logo />
+          </button>
           <nav className="side-nav" aria-label="Primary navigation">
             {sideGroups.map((group) => (
               <div key={group.title}>
@@ -1529,49 +1532,51 @@ export default function DealFlow360App() {
             }
           />
           {quoteView === "cards" ? (
-            <div className="kanban">
-              {(() => {
-                const liveDeal: PipelineDeal = {
-                  id: "Q-1042",
-                  name: "Acme Corp",
-                  owner: "M. Shah",
-                  amount: money(totals.net),
-                  lane: laneForQuoteStage(quoteStage),
-                  go: "quote-builder",
-                  live: true
-                };
-                const deals = [liveDeal, ...STATIC_PIPELINE_DEALS];
-                const toneForLane = (lane: KanbanLane): StatusTone =>
-                  lane === "Pending approval" ? "amber" : lane === "Approved" || lane === "Confirmed" ? "green" : lane === "Negotiation" ? "blue" : "neutral";
-                return KANBAN_LANES.map((lane) => {
-                  const inLane = deals.filter((deal) => deal.lane === lane);
-                  return (
-                    <div className="lane" key={lane}>
-                      <div className="lane-header">
-                        <strong>{lane}</strong>
-                        <Badge tone={toneForLane(lane)}>{inLane.length}</Badge>
+            <Card title="Kanban Pipeline Board" action={<Badge tone="blue">Click any deal to open</Badge>}>
+              <div className="kanban">
+                {(() => {
+                  const liveDeal: PipelineDeal = {
+                    id: "Q-1042",
+                    name: "Acme Corp",
+                    owner: "M. Shah",
+                    amount: money(totals.net),
+                    lane: laneForQuoteStage(quoteStage),
+                    go: "quote-builder",
+                    live: true
+                  };
+                  const deals = [liveDeal, ...STATIC_PIPELINE_DEALS];
+                  const toneForLane = (lane: KanbanLane): StatusTone =>
+                    lane === "Pending approval" ? "amber" : lane === "Approved" || lane === "Confirmed" ? "green" : lane === "Negotiation" ? "blue" : "neutral";
+                  return KANBAN_LANES.map((lane) => {
+                    const inLane = deals.filter((deal) => deal.lane === lane);
+                    return (
+                      <div className="lane" key={lane}>
+                        <div className="lane-header">
+                          <strong>{lane}</strong>
+                          <Badge tone={toneForLane(lane)}>{inLane.length}</Badge>
+                        </div>
+                        {inLane.length ? (
+                          inLane.map((deal) => (
+                            <DealCard
+                              key={deal.id}
+                              name={deal.name}
+                              id={deal.id}
+                              amount={deal.amount}
+                              owner={deal.owner}
+                              live={deal.live}
+                              tone={deal.live ? (lane === "Draft" ? "neutral" : toneForLane(lane)) : "neutral"}
+                              onOpen={() => navigate(deal.go)}
+                            />
+                          ))
+                        ) : (
+                          <div className="lane-empty">No deals in this stage</div>
+                        )}
                       </div>
-                      {inLane.length ? (
-                        inLane.map((deal) => (
-                          <DealCard
-                            key={deal.id}
-                            name={deal.name}
-                            id={deal.id}
-                            amount={deal.amount}
-                            owner={deal.owner}
-                            live={deal.live}
-                            tone={deal.live ? (lane === "Draft" ? "neutral" : toneForLane(lane)) : "neutral"}
-                            onOpen={() => navigate(deal.go)}
-                          />
-                        ))
-                      ) : (
-                        <div className="lane-empty">No deals in this stage</div>
-                      )}
-                    </div>
-                  );
-                });
-              })()}
-            </div>
+                    );
+                  });
+                })()}
+              </div>
+            </Card>
           ) : (
             <Card title="Quotations Pipeline Register">
               <DataTable
