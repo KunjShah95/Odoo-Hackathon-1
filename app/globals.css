@@ -675,6 +675,11 @@ input[type="checkbox"] { width: 15px; height: 15px; min-height: 0; padding: 0; a
   transition: all var(--dur-fast) var(--ease);
   position: relative;
   user-select: none;
+  -webkit-user-select: none;
+  cursor: grab;
+}
+.deal-card:active {
+  cursor: grabbing;
 }
 .deal-card:hover {
   border-color: var(--accent-line);
@@ -687,9 +692,10 @@ input[type="checkbox"] { width: 15px; height: 15px; min-height: 0; padding: 0; a
   box-shadow: var(--shadow-s);
 }
 .deal-card.is-dragging {
-  opacity: 0.4;
-  transform: scale(0.96) rotate(1deg);
+  opacity: 0.45;
+  transform: scale(0.97) rotate(1deg);
   border: 2px dashed var(--accent);
+  cursor: grabbing;
 }
 .deal-card .drag-handle {
   display: inline-flex;
@@ -699,6 +705,9 @@ input[type="checkbox"] { width: 15px; height: 15px; min-height: 0; padding: 0; a
   padding: 2px;
   border-radius: var(--radius-xs);
   transition: color var(--dur-fast) var(--ease);
+}
+.deal-card .drag-handle:active {
+  cursor: grabbing;
 }
 .deal-card .drag-handle:hover {
   color: var(--accent);
@@ -765,6 +774,7 @@ input[type="checkbox"] { width: 15px; height: 15px; min-height: 0; padding: 0; a
   display: grid;
   place-items: center;
   gap: 4px;
+  pointer-events: none;
 }
 
 /* ---------- Portal / tour / toast ---------- */

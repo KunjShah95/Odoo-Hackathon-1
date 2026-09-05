@@ -1609,21 +1609,39 @@ export default function DealFlow360App() {
                       <div
                         className={`lane ${isDropActive ? "drop-target" : ""}`}
                         key={lane}
+                        onDragEnter={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          if (dragOverLane !== lane) setDragOverLane(lane);
+                        }}
                         onDragOver={(e) => {
                           e.preventDefault();
-                          e.dataTransfer.dropEffect = "move";
+                          e.stopPropagation();
+                          try {
+                            e.dataTransfer.dropEffect = "move";
+                          } catch {}
                           if (dragOverLane !== lane) setDragOverLane(lane);
                         }}
                         onDragLeave={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
                           if (e.currentTarget.contains(e.relatedTarget as Node)) return;
                           if (dragOverLane === lane) setDragOverLane(null);
                         }}
                         onDrop={(e) => {
                           e.preventDefault();
-                          const droppedId = e.dataTransfer.getData("text/plain") || draggingDealId;
+                          e.stopPropagation();
+                          let droppedId = "";
+                          try {
+                            droppedId = e.dataTransfer.getData("text/deal-id") || e.dataTransfer.getData("text/plain");
+                          } catch {}
+                          if (!droppedId) {
+                            droppedId = (window as unknown as { __activeKanbanDrag?: string }).__activeKanbanDrag || draggingDealId || "";
+                          }
                           if (droppedId) {
                             moveDealToLane(droppedId, lane);
                           }
+                          (window as unknown as { __activeKanbanDrag?: string | null }).__activeKanbanDrag = null;
                           setDragOverLane(null);
                           setDraggingDealId(null);
                         }}
@@ -2847,23 +2865,44 @@ function DealCard({
 }) {
   const nextLaneIndex = (KANBAN_LANES.indexOf(lane) + 1) % KANBAN_LANES.length;
   const nextLane = KANBAN_LANES[nextLaneIndex];
+  const dragOccurredRef = useRef(false);
+  const dragStartTimeRef = useRef(0);
+
+  const handleCardClick = (e: React.MouseEvent) => {
+    if (dragOccurredRef.current || (Date.now() - dragStartTimeRef.current < 500 && dragStartTimeRef.current > 0)) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+    onOpen();
+  };
 
   return (
     <div
       className={`deal-card${live ? " live" : ""}${isDragging ? " is-dragging" : ""}`}
       draggable={true}
       onDragStart={(e) => {
-        e.dataTransfer.setData("text/plain", id);
-        e.dataTransfer.effectAllowed = "move";
+        dragOccurredRef.current = true;
+        dragStartTimeRef.current = Date.now();
+        (window as unknown as { __activeKanbanDrag?: string }).__activeKanbanDrag = id;
+        try {
+          e.dataTransfer.setData("text/plain", id);
+          e.dataTransfer.setData("text/deal-id", id);
+          e.dataTransfer.effectAllowed = "move";
+        } catch {}
         onDragStart?.();
       }}
       onDragEnd={() => {
+        (window as unknown as { __activeKanbanDrag?: string | null }).__activeKanbanDrag = null;
+        setTimeout(() => {
+          dragOccurredRef.current = false;
+        }, 400);
         onDragEnd?.();
       }}
       role="region"
       aria-label={`Deal card for ${name}, ${id}, ${amount}`}
     >
-      <div className="deal-card-top" onClick={onOpen} style={{ cursor: "pointer" }}>
+      <div className="deal-card-top" onClick={handleCardClick} style={{ cursor: "pointer" }}>
         <div className="cluster" style={{ justifyContent: "space-between", width: "100%" }}>
           <div className="cluster" style={{ gap: 6 }}>
             <span className="drag-handle" title="Drag card to any stage" aria-hidden="true">
