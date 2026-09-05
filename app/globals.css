@@ -632,23 +632,140 @@ input[type="checkbox"] { width: 15px; height: 15px; min-height: 0; padding: 0; a
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
   gap: 14px;
-  overflow: visible;
-  padding-bottom: 6px;
+  overflow-x: auto;
+  padding-bottom: 8px;
 }
-.lane { min-height: 440px; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius-l); background: var(--panel-soft); }
-.lane-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; padding: 2px 4px; }
-.lane-header strong { font-size: 12.5px; }
+.lane {
+  min-height: 480px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-l);
+  background: var(--panel-soft);
+  display: flex;
+  flex-direction: column;
+  transition: all var(--dur-fast) var(--ease);
+}
+.lane.drop-target {
+  background: color-mix(in srgb, var(--accent-soft) 85%, var(--panel));
+  border: 2px dashed var(--accent);
+  box-shadow: var(--shadow-glow);
+  transform: scale(1.01);
+}
+.lane-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  padding: 2px 4px;
+}
+.lane-header strong { font-size: 13px; font-weight: 700; }
+.lane-body { flex: 1; display: grid; gap: 10px; align-content: start; }
 .deal-card {
-  display: grid; gap: 8px; margin-top: 10px; padding: 14px;
-  border: 1px solid var(--line); border-top: 2px solid var(--accent-line); border-radius: var(--radius-m);
-  background: var(--panel); text-align: left; width: 100%; cursor: pointer;
-  box-shadow: var(--shadow-xs); transition: all var(--dur-fast) var(--ease);
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-top: 3px solid var(--line-strong);
+  border-radius: var(--radius-m);
+  background: var(--panel);
+  text-align: left;
+  width: 100%;
+  box-shadow: var(--shadow-xs);
+  transition: all var(--dur-fast) var(--ease);
+  position: relative;
+  user-select: none;
 }
-button.deal-card:hover { border-color: var(--accent-line); box-shadow: var(--shadow-m); transform: translateY(-2px); }
-button.deal-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.deal-card.live { border-color: var(--accent-line); border-top-color: var(--accent); box-shadow: var(--shadow-m); }
-.deal-card .live-dot { display: inline-block; width: 7px; height: 7px; border-radius: 99px; background: var(--green); box-shadow: 0 0 0 3px color-mix(in srgb, var(--green) 25%, transparent); }
-.lane-empty { margin-top: 10px; padding: 18px 10px; text-align: center; font-size: 12px; color: var(--faint); border: 1px dashed var(--line); border-radius: var(--radius-m); }
+.deal-card:hover {
+  border-color: var(--accent-line);
+  box-shadow: var(--shadow-m);
+  transform: translateY(-2px);
+}
+.deal-card.live {
+  border-color: var(--accent-line);
+  border-top-color: var(--accent);
+  box-shadow: var(--shadow-s);
+}
+.deal-card.is-dragging {
+  opacity: 0.4;
+  transform: scale(0.96) rotate(1deg);
+  border: 2px dashed var(--accent);
+}
+.deal-card .drag-handle {
+  display: inline-flex;
+  align-items: center;
+  color: var(--faint);
+  cursor: grab;
+  padding: 2px;
+  border-radius: var(--radius-xs);
+  transition: color var(--dur-fast) var(--ease);
+}
+.deal-card .drag-handle:hover {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.deal-card .live-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 99px;
+  background: var(--green);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--green) 25%, transparent);
+}
+.deal-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line-subtle);
+}
+.deal-stage-select {
+  flex: 1;
+  min-height: 27px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: var(--radius-s);
+  border: 1px solid var(--line);
+  background: var(--panel-soft);
+  color: var(--ink-secondary);
+  cursor: pointer;
+}
+.deal-stage-select:hover {
+  border-color: var(--accent-line);
+  color: var(--ink);
+}
+.deal-quick-move {
+  display: inline-grid;
+  place-items: center;
+  width: 27px;
+  height: 27px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-s);
+  background: var(--panel-soft);
+  color: var(--muted);
+  cursor: pointer;
+  transition: all var(--dur-fast) var(--ease);
+}
+.deal-quick-move:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.lane-empty {
+  margin-top: 10px;
+  padding: 24px 10px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--faint);
+  border: 1px dashed var(--line);
+  border-radius: var(--radius-m);
+  display: grid;
+  place-items: center;
+  gap: 4px;
+}
 
 /* ---------- Portal / tour / toast ---------- */
 .portal-bar {

@@ -32,6 +32,7 @@ import {
   FileSpreadsheet,
   FileText,
   Filter,
+  GripVertical,
   HelpCircle,
   Inbox,
   Info,
@@ -44,6 +45,7 @@ import {
   Minus,
   MonitorSmartphone,
   Moon,
+  MoveRight,
   Package,
   PackageCheck,
   Percent,
@@ -827,6 +829,9 @@ export default function DealFlow360App() {
   const [lines, setLines] = useState<LineItem[]>(INITIAL_LINES);
   const [resetStep, setResetStep] = useState<"email" | "code" | "reset">("email");
   const [resetEmail, setResetEmail] = useState("alex.chen@acmeops.io");
+  const [pipelineDeals, setPipelineDeals] = useState<PipelineDeal[]>(STATIC_PIPELINE_DEALS);
+  const [dragOverLane, setDragOverLane] = useState<KanbanLane | null>(null);
+  const [draggingDealId, setDraggingDealId] = useState<string | null>(null);
 
   const totals = useMemo(() => {
     const gross = lines.reduce((sum, line) => sum + line.qty * line.price, 0);
@@ -900,6 +905,42 @@ export default function DealFlow360App() {
     notify(message ?? `${routeNames[nextRoute]} loaded`, kind);
   };
 
+  const moveDealToLane = (dealId: string, newLane: KanbanLane) => {
+    if (dealId === "Q-1042") {
+      if (newLane === "Draft") setQuoteStage("Draft");
+      else if (newLane === "Pending approval") setQuoteStage("Pending approval");
+      else if (newLane === "Approved") setQuoteStage("Approved");
+      else if (newLane === "Fulfillment") setQuoteStage("Fulfillment");
+      else if (newLane === "Confirmed") setQuoteStage("Paid");
+      else if (newLane === "Negotiation") setQuoteStage("Draft");
+      notify(`Quote Q-1042 transitioned to "${newLane}" stage`, "success");
+      return;
+    }
+    setPipelineDeals((prev) =>
+      prev.map((d) => (d.id === dealId ? { ...d, lane: newLane } : d))
+    );
+    notify(`Deal ${dealId} transitioned to "${newLane}" stage`, "success");
+  };
+
+  const handleAddKanbanDeal = () => {
+    const newNum = Math.floor(1048 + Math.random() * 50);
+    const newId = `Q-${newNum}`;
+    const accounts = ["Vertex Systems", "Apex Global", "Zenith Dynamics", "Solaris Tech", "Orbit Labs", "Nexus Retail"];
+    const randomAcc = accounts[Math.floor(Math.random() * accounts.length)];
+    const amounts = ["₹12,800", "₹24,500", "₹38,200", "₹19,600", "₹45,000", "₹31,400"];
+    const randomAmt = amounts[Math.floor(Math.random() * amounts.length)];
+    const newDeal: PipelineDeal = {
+      id: newId,
+      name: randomAcc,
+      owner: "M. Shah",
+      amount: randomAmt,
+      lane: "Draft",
+      go: "quote-builder"
+    };
+    setPipelineDeals((prev) => [newDeal, ...prev]);
+    notify(`Created new draft deal ${newId} for ${randomAcc}`, "success");
+  };
+
   const resetDemo = () => {
     setQuoteStage("Draft");
     setApprovalDecision("Finance review pending");
@@ -913,6 +954,9 @@ export default function DealFlow360App() {
     setQuoteView("cards");
     setCounterDiscount("14.5");
     setLines(INITIAL_LINES);
+    setPipelineDeals(STATIC_PIPELINE_DEALS);
+    setDragOverLane(null);
+    setDraggingDealId(null);
     navigate("signin", "Demo state reset to initial baseline", "info");
   };
 
@@ -1532,7 +1576,17 @@ export default function DealFlow360App() {
             }
           />
           {quoteView === "cards" ? (
-            <Card title="Kanban Pipeline Board" action={<Badge tone="blue">Click any deal to open</Badge>}>
+            <Card
+              title="Kanban Pipeline Board"
+              action={
+                <div className="cluster" style={{ gap: 8 }}>
+                  <Badge tone="blue">Drag cards or use stage switchers</Badge>
+                  <Button tone="primary" onClick={handleAddKanbanDeal}>
+                    <Plus size={13} /> Quick Add Deal
+                  </Button>
+                </div>
+              }
+            >
               <div className="kanban">
                 {(() => {
                   const liveDeal: PipelineDeal = {
@@ -1544,33 +1598,71 @@ export default function DealFlow360App() {
                     go: "quote-builder",
                     live: true
                   };
-                  const deals = [liveDeal, ...STATIC_PIPELINE_DEALS];
+                  const allDeals = [liveDeal, ...pipelineDeals];
                   const toneForLane = (lane: KanbanLane): StatusTone =>
                     lane === "Pending approval" ? "amber" : lane === "Approved" || lane === "Confirmed" ? "green" : lane === "Negotiation" ? "blue" : "neutral";
+
                   return KANBAN_LANES.map((lane) => {
-                    const inLane = deals.filter((deal) => deal.lane === lane);
+                    const inLane = allDeals.filter((deal) => deal.lane === lane);
+                    const isDropActive = dragOverLane === lane;
                     return (
-                      <div className="lane" key={lane}>
+                      <div
+                        className={`lane ${isDropActive ? "drop-target" : ""}`}
+                        key={lane}
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          e.dataTransfer.dropEffect = "move";
+                          if (dragOverLane !== lane) setDragOverLane(lane);
+                        }}
+                        onDragLeave={(e) => {
+                          if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+                          if (dragOverLane === lane) setDragOverLane(null);
+                        }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          const droppedId = e.dataTransfer.getData("text/plain") || draggingDealId;
+                          if (droppedId) {
+                            moveDealToLane(droppedId, lane);
+                          }
+                          setDragOverLane(null);
+                          setDraggingDealId(null);
+                        }}
+                      >
                         <div className="lane-header">
-                          <strong>{lane}</strong>
+                          <div className="cluster" style={{ gap: 6 }}>
+                            <strong>{lane}</strong>
+                          </div>
                           <Badge tone={toneForLane(lane)}>{inLane.length}</Badge>
                         </div>
-                        {inLane.length ? (
-                          inLane.map((deal) => (
-                            <DealCard
-                              key={deal.id}
-                              name={deal.name}
-                              id={deal.id}
-                              amount={deal.amount}
-                              owner={deal.owner}
-                              live={deal.live}
-                              tone={deal.live ? (lane === "Draft" ? "neutral" : toneForLane(lane)) : "neutral"}
-                              onOpen={() => navigate(deal.go)}
-                            />
-                          ))
-                        ) : (
-                          <div className="lane-empty">No deals in this stage</div>
-                        )}
+                        <div className="lane-body" style={{ display: "grid", gap: 10, minHeight: 280 }}>
+                          {inLane.length ? (
+                            inLane.map((deal) => (
+                              <DealCard
+                                key={deal.id}
+                                name={deal.name}
+                                id={deal.id}
+                                amount={deal.amount}
+                                owner={deal.owner}
+                                live={deal.live}
+                                lane={deal.lane}
+                                tone={deal.live ? (lane === "Draft" ? "neutral" : toneForLane(lane)) : "neutral"}
+                                isDragging={draggingDealId === deal.id}
+                                onDragStart={() => setDraggingDealId(deal.id)}
+                                onDragEnd={() => {
+                                  setDraggingDealId(null);
+                                  setDragOverLane(null);
+                                }}
+                                onOpen={() => navigate(deal.go)}
+                                onMoveLane={(targetLane) => moveDealToLane(deal.id, targetLane)}
+                              />
+                            ))
+                          ) : (
+                            <div className="lane-empty">
+                              <p>No deals in this stage</p>
+                              <span className="subtle" style={{ fontSize: 11 }}>Drag cards here to advance</span>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     );
                   });
@@ -2733,7 +2825,12 @@ function DealCard({
   tone,
   owner,
   live,
-  onOpen
+  lane,
+  isDragging,
+  onDragStart,
+  onDragEnd,
+  onOpen,
+  onMoveLane
 }: {
   name: string;
   id: string;
@@ -2741,20 +2838,77 @@ function DealCard({
   tone: StatusTone;
   owner?: string;
   live?: boolean;
+  lane: KanbanLane;
+  isDragging?: boolean;
+  onDragStart?: () => void;
+  onDragEnd?: () => void;
   onOpen: () => void;
+  onMoveLane: (newLane: KanbanLane) => void;
 }) {
+  const nextLaneIndex = (KANBAN_LANES.indexOf(lane) + 1) % KANBAN_LANES.length;
+  const nextLane = KANBAN_LANES[nextLaneIndex];
+
   return (
-    <button className={`deal-card${live ? " live" : ""}`} onClick={onOpen} type="button" aria-label={`${name} ${id} ${amount}`}>
-      <div className="cluster" style={{ justifyContent: "space-between" }}>
-        <strong>{name}</strong>
-        <Badge tone={tone}>{id}</Badge>
+    <div
+      className={`deal-card${live ? " live" : ""}${isDragging ? " is-dragging" : ""}`}
+      draggable={true}
+      onDragStart={(e) => {
+        e.dataTransfer.setData("text/plain", id);
+        e.dataTransfer.effectAllowed = "move";
+        onDragStart?.();
+      }}
+      onDragEnd={() => {
+        onDragEnd?.();
+      }}
+      role="region"
+      aria-label={`Deal card for ${name}, ${id}, ${amount}`}
+    >
+      <div className="deal-card-top" onClick={onOpen} style={{ cursor: "pointer" }}>
+        <div className="cluster" style={{ justifyContent: "space-between", width: "100%" }}>
+          <div className="cluster" style={{ gap: 6 }}>
+            <span className="drag-handle" title="Drag card to any stage" aria-hidden="true">
+              <GripVertical size={13} />
+            </span>
+            <strong>{name}</strong>
+          </div>
+          <Badge tone={tone}>{id}</Badge>
+        </div>
+        <div className="mono" style={{ fontSize: "17px", fontWeight: 800, letterSpacing: 0, marginTop: 4 }}>
+          {amount}
+        </div>
+        <div className="cluster" style={{ justifyContent: "space-between", marginTop: 4 }}>
+          <span className="subtle">{owner ? `${owner} · Enterprise` : "Enterprise Pricing Package"}</span>
+          {live ? <span className="live-dot" title="Live Interactive Quote" aria-label="Live deal" /> : <span className="subtle mono">→</span>}
+        </div>
       </div>
-      <div className="mono" style={{ fontSize: "17px", fontWeight: 800, letterSpacing: 0 }}>{amount}</div>
-      <div className="cluster" style={{ justifyContent: "space-between" }}>
-        <span className="subtle">{owner ? `${owner} · Enterprise package` : "Enterprise Pricing Package"}</span>
-        {live ? <span className="live-dot" aria-label="Live deal" /> : <span className="subtle mono">→</span>}
+      <div className="deal-card-actions">
+        <select
+          className="deal-stage-select"
+          aria-label={`Change stage for deal ${id}`}
+          value={lane}
+          onChange={(e) => onMoveLane(e.target.value as KanbanLane)}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {KANBAN_LANES.map((l) => (
+            <option key={l} value={l}>
+              Stage: {l}
+            </option>
+          ))}
+        </select>
+        <button
+          className="deal-quick-move"
+          title={`Advance to ${nextLane}`}
+          aria-label={`Advance to ${nextLane}`}
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onMoveLane(nextLane);
+          }}
+        >
+          <ChevronRight size={13} aria-hidden="true" />
+        </button>
       </div>
-    </button>
+    </div>
   );
 }
 
