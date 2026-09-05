@@ -754,7 +754,7 @@ const INITIAL_LINES: LineItem[] = [
   { id: "warranty", product: "Extended Warranty 2-Year", category: "Warranty", qty: 1, price: 180, discount: 10, cap: 10 }
 ];
 
-const KANBAN_LANES = ["Draft", "Pending approval", "Approved", "Negotiation", "Fulfillment", "Confirmed"] as const;
+const KANBAN_LANES = ["Draft", "Negotiation", "Pending approval", "Approved", "Fulfillment", "Confirmed"] as const;
 type KanbanLane = (typeof KANBAN_LANES)[number];
 
 function laneForQuoteStage(stage: QuoteStage): KanbanLane {
@@ -832,6 +832,10 @@ export default function DealFlow360App() {
   const [pipelineDeals, setPipelineDeals] = useState<PipelineDeal[]>(STATIC_PIPELINE_DEALS);
   const [dragOverLane, setDragOverLane] = useState<KanbanLane | null>(null);
   const [draggingDealId, setDraggingDealId] = useState<string | null>(null);
+  // Q-1042 is driven by quoteStage, but QuoteStage has no "Negotiation" value,
+  // so a board move into Negotiation needs an explicit override. Null = derive.
+  const [q1042LaneOverride, setQ1042LaneOverride] = useState<KanbanLane | null>(null);
+  const nextDealSeq = useRef(0);
 
   const totals = useMemo(() => {
     const gross = lines.reduce((sum, line) => sum + line.qty * line.price, 0);
@@ -905,15 +909,64 @@ export default function DealFlow360App() {
     notify(message ?? `${routeNames[nextRoute]} loaded`, kind);
   };
 
+  const q1042DerivedLane: KanbanLane = laneForQuoteStage(quoteStage);
+  const q1042Lane: KanbanLane = q1042LaneOverride ?? q1042DerivedLane;
+
   const moveDealToLane = (dealId: string, newLane: KanbanLane) => {
     if (dealId === "Q-1042") {
-      if (newLane === "Draft") setQuoteStage("Draft");
-      else if (newLane === "Pending approval") setQuoteStage("Pending approval");
-      else if (newLane === "Approved") setQuoteStage("Approved");
-      else if (newLane === "Fulfillment") setQuoteStage("Fulfillment");
-      else if (newLane === "Confirmed") setQuoteStage("Paid");
-      else if (newLane === "Negotiation") setQuoteStage("Draft");
+      if (newLane === q1042Lane) {
+        notify(`Quote Q-1042 is already in "${newLane}"`, "info");
+        return;
+      }
+      setQ1042LaneOverride(newLane);
+      // Keep the quote-stage state machine in sync so detail pages agree.
+      if (newLane === "Draft") {
+        setQuoteStage("Draft");
+        setApprovalDecision("Finance review pending");
+        setFulfillmentAccepted(false);
+        setSubscriptionActive(false);
+        setInvoicePaid(false);
+      } else if (newLane === "Negotiation") {
+        setQuoteStage("Draft");
+        setApprovalDecision("Finance review pending");
+        setFulfillmentAccepted(false);
+        setSubscriptionActive(false);
+        setInvoicePaid(false);
+      } else if (newLane === "Pending approval") {
+        setQuoteStage("Pending approval");
+        setApprovalDecision("Sales Lead approved; Finance Director pending");
+        setFulfillmentAccepted(false);
+        setSubscriptionActive(false);
+        setInvoicePaid(false);
+      } else if (newLane === "Approved") {
+        setQuoteStage("Approved");
+        setApprovalDecision("Approved by Sales Ops & Finance Director");
+        setFulfillmentAccepted(false);
+        setSubscriptionActive(false);
+        setInvoicePaid(false);
+      } else if (newLane === "Fulfillment") {
+        setQuoteStage("Fulfillment");
+        setApprovalDecision("Approved by Sales Ops & Finance Director");
+        setFulfillmentAccepted(true);
+        setSubscriptionActive(false);
+        setInvoicePaid(false);
+      } else if (newLane === "Confirmed") {
+        setQuoteStage("Paid");
+        setApprovalDecision("Approved by Sales Ops & Finance Director");
+        setFulfillmentAccepted(true);
+        setSubscriptionActive(true);
+        setInvoicePaid(true);
+      }
       notify(`Quote Q-1042 transitioned to "${newLane}" stage`, "success");
+      return;
+    }
+    const existing = pipelineDeals.find((d) => d.id === dealId);
+    if (!existing) {
+      notify(`Deal ${dealId} not found. Board unchanged.`, "error");
+      return;
+    }
+    if (existing.lane === newLane) {
+      notify(`Deal ${dealId} is already in "${newLane}"`, "info");
       return;
     }
     setPipelineDeals((prev) =>
@@ -923,12 +976,17 @@ export default function DealFlow360App() {
   };
 
   const handleAddKanbanDeal = () => {
-    const newNum = Math.floor(1048 + Math.random() * 50);
-    const newId = `Q-${newNum}`;
     const accounts = ["Vertex Systems", "Apex Global", "Zenith Dynamics", "Solaris Tech", "Orbit Labs", "Nexus Retail"];
-    const randomAcc = accounts[Math.floor(Math.random() * accounts.length)];
     const amounts = ["₹12,800", "₹24,500", "₹38,200", "₹19,600", "₹45,000", "₹31,400"];
-    const randomAmt = amounts[Math.floor(Math.random() * amounts.length)];
+    const seq = nextDealSeq.current;
+    nextDealSeq.current += 1;
+    // Deterministic, collision-free id: bump until unused.
+    let candidate = 1048 + (seq % 900);
+    const used = new Set([...pipelineDeals.map((d) => d.id), "Q-1042", "Q-1046", "Q-1039", "Q-1041", "Q-1035"]);
+    while (used.has(`Q-${candidate}`)) candidate += 1;
+    const newId = `Q-${candidate}`;
+    const randomAcc = accounts[seq % accounts.length];
+    const randomAmt = amounts[seq % amounts.length];
     const newDeal: PipelineDeal = {
       id: newId,
       name: randomAcc,
@@ -957,6 +1015,8 @@ export default function DealFlow360App() {
     setPipelineDeals(STATIC_PIPELINE_DEALS);
     setDragOverLane(null);
     setDraggingDealId(null);
+    setQ1042LaneOverride(null);
+    nextDealSeq.current = 0;
     navigate("signin", "Demo state reset to initial baseline", "info");
   };
 
@@ -982,6 +1042,7 @@ export default function DealFlow360App() {
 
   const submitQuote = () => {
     setQuoteStage("Pending approval");
+    setQ1042LaneOverride(null);
     setApprovalDecision("Sales Lead approved; Finance Director pending");
     setReturnedQuotes((q) => q.filter((id) => id !== "Q-1042"));
     navigate("approvals", "Q-1042 escalated to approval matrix", "success");
@@ -989,6 +1050,7 @@ export default function DealFlow360App() {
 
   const approveQuote = () => {
     setQuoteStage("Approved");
+    setQ1042LaneOverride(null);
     setApprovalDecision("Approved by Sales Ops & Finance Director");
     navigate("fulfillment", "Q-1042 approved. Stock reservation allocated.", "success");
   };
@@ -1002,18 +1064,21 @@ export default function DealFlow360App() {
   const acceptSplit = () => {
     setFulfillmentAccepted(true);
     setQuoteStage("Fulfillment");
+    setQ1042LaneOverride(null);
     navigate("subscriptions", "Split fulfillment accepted. Plan initiated.", "success");
   };
 
   const generateInvoice = () => {
     setSubscriptionActive(true);
     setQuoteStage("Invoiced");
+    setQ1042LaneOverride(null);
     navigate("invoices", "Invoice INV-1042 generated from subscription", "success");
   };
 
   const receivePayment = () => {
     setInvoicePaid(true);
     setQuoteStage("Paid");
+    setQ1042LaneOverride(null);
     notify("Payment received via Stripe. Books reconciled.", "success");
   };
 
@@ -1594,13 +1659,13 @@ export default function DealFlow360App() {
                     name: "Acme Corp",
                     owner: "M. Shah",
                     amount: money(totals.net),
-                    lane: laneForQuoteStage(quoteStage),
+                    lane: q1042Lane,
                     go: "quote-builder",
                     live: true
                   };
                   const allDeals = [liveDeal, ...pipelineDeals];
                   const toneForLane = (lane: KanbanLane): StatusTone =>
-                    lane === "Pending approval" ? "amber" : lane === "Approved" || lane === "Confirmed" ? "green" : lane === "Negotiation" ? "blue" : "neutral";
+                    lane === "Pending approval" ? "amber" : lane === "Approved" || lane === "Confirmed" ? "green" : lane === "Negotiation" || lane === "Fulfillment" ? "blue" : "neutral";
 
                   return KANBAN_LANES.map((lane) => {
                     const inLane = allDeals.filter((deal) => deal.lane === lane);
@@ -2863,18 +2928,28 @@ function DealCard({
   onOpen: () => void;
   onMoveLane: (newLane: KanbanLane) => void;
 }) {
-  const nextLaneIndex = (KANBAN_LANES.indexOf(lane) + 1) % KANBAN_LANES.length;
-  const nextLane = KANBAN_LANES[nextLaneIndex];
+  const laneIndex = KANBAN_LANES.indexOf(lane);
+  const isLastLane = laneIndex === KANBAN_LANES.length - 1;
+  const nextLane: KanbanLane | null = isLastLane ? null : KANBAN_LANES[laneIndex + 1];
   const dragOccurredRef = useRef(false);
-  const dragStartTimeRef = useRef(0);
 
   const handleCardClick = (e: React.MouseEvent) => {
-    if (dragOccurredRef.current || (Date.now() - dragStartTimeRef.current < 500 && dragStartTimeRef.current > 0)) {
+    if (dragOccurredRef.current) {
       e.preventDefault();
       e.stopPropagation();
       return;
     }
     onOpen();
+  };
+
+  const handleCardKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === " ") {
+      // Space scrolls by default; only hijack it when the card itself is focused,
+      // not when focus is inside the stage <select> or buttons.
+      if (e.target !== e.currentTarget) return;
+      e.preventDefault();
+      onOpen();
+    }
   };
 
   return (
@@ -2883,7 +2958,6 @@ function DealCard({
       draggable={true}
       onDragStart={(e) => {
         dragOccurredRef.current = true;
-        dragStartTimeRef.current = Date.now();
         (window as unknown as { __activeKanbanDrag?: string }).__activeKanbanDrag = id;
         try {
           e.dataTransfer.setData("text/plain", id);
@@ -2899,8 +2973,10 @@ function DealCard({
         }, 400);
         onDragEnd?.();
       }}
-      role="region"
-      aria-label={`Deal card for ${name}, ${id}, ${amount}`}
+      role="group"
+      tabIndex={0}
+      aria-label={`Deal card for ${name}, ${id}, ${amount}, in ${lane}`}
+      onKeyDown={handleCardKeyDown}
     >
       <div className="deal-card-top" onClick={handleCardClick} style={{ cursor: "pointer" }}>
         <div className="cluster" style={{ justifyContent: "space-between", width: "100%" }}>
@@ -2936,12 +3012,13 @@ function DealCard({
         </select>
         <button
           className="deal-quick-move"
-          title={`Advance to ${nextLane}`}
-          aria-label={`Advance to ${nextLane}`}
+          title={nextLane ? `Advance to ${nextLane}` : "Already in final stage"}
+          aria-label={nextLane ? `Advance to ${nextLane}` : "Already in final stage"}
           type="button"
+          disabled={!nextLane}
           onClick={(e) => {
             e.stopPropagation();
-            onMoveLane(nextLane);
+            if (nextLane) onMoveLane(nextLane);
           }}
         >
           <ChevronRight size={13} aria-hidden="true" />

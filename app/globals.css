@@ -763,6 +763,18 @@ input[type="checkbox"] { width: 15px; height: 15px; min-height: 0; padding: 0; a
   border-color: var(--accent);
   color: #fff;
 }
+.deal-quick-move:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  background: var(--panel-soft);
+  border-color: var(--line);
+  color: var(--faint);
+}
+.deal-quick-move:disabled:hover {
+  background: var(--panel-soft);
+  border-color: var(--line);
+  color: var(--faint);
+}
 .lane-empty {
   margin-top: 10px;
   padding: 24px 10px;
