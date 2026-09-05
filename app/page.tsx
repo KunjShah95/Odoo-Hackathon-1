@@ -2374,7 +2374,7 @@ function LandingPage({
           <div className="lp-nav-cta">
             <ThemeToggle theme={theme} onChange={onThemeChange} />
             <Button tone="ghost" onClick={() => onGo("signin")}>Sign in</Button>
-            <Button tone="primary" onClick={() => onGo("dashboard", "Live demo workspace loaded")}>Open live demo <ArrowRight size={14} /></Button>
+            <Button tone="primary" onClick={() => onGo("dashboard", "Workspace loaded")}>Get started <ArrowRight size={14} /></Button>
           </div>
         </div>
       </header>
@@ -2385,7 +2385,7 @@ function LandingPage({
           <motion.h1 variants={lpRise}>Every quote has a next step. <span className="u">Show it.</span></motion.h1>
           <motion.p variants={lpRise} className="lp-sub">DealFlow 360 carries each deal from draft to paid: discounts, approvals, stock, invoices, so sales ops always knows what is blocking what, and who signs next.</motion.p>
           <motion.div variants={lpRise} className="lp-cta-row">
-            <Button tone="primary" onClick={() => onGo("dashboard", "Live demo workspace loaded")}>Open live demo <ArrowRight size={14} /></Button>
+            <Button tone="primary" onClick={() => onGo("dashboard", "Workspace loaded")}>Get started <ArrowRight size={14} /></Button>
             <Button onClick={() => onGo("quote-builder")}>Inspect a real quote</Button>
           </motion.div>
           <motion.div variants={lpRise} className="lp-proof" id="proof">
@@ -2416,7 +2416,7 @@ function LandingPage({
             </div>
           </div>
           <div className="lp-shot-cap">
-            <Badge tone="blue"><span className="pulse-dot" /> Live demo data</Badge>
+            <Badge tone="blue"><span className="pulse-dot" /> Live data</Badge>
             <span className="subtle">Click through: every number below is interactive.</span>
           </div>
         </motion.div>
@@ -2437,7 +2437,7 @@ function LandingPage({
         <motion.div className="lp-section-head" initial={{ opacity: 0, y: 22 }} whileInView={{ opacity: 1, y: 0 }} viewport={lpView} transition={{ duration: 0.55, ease: "easeOut" }}>
           <p className="lp-kicker">Product</p>
           <h2>One workspace, six jobs done.</h2>
-          <p className="subtle">Each module below opens live in the demo. No screenshots, no mock data theater.</p>
+          <p className="subtle">Each module below opens live in the workspace. No screenshots, no mock data theater.</p>
         </motion.div>
         <motion.div className="lp-grid" variants={lpStagger} initial="hidden" whileInView="show" viewport={lpView}>
           {feats.map((f) => (
@@ -2478,7 +2478,7 @@ function LandingPage({
             <p>18 working views, one pipeline, zero spreadsheet archaeology. Start with Q-1042.</p>
           </div>
           <div className="cluster">
-            <Button tone="primary" onClick={() => onGo("dashboard", "Live demo workspace loaded")}>Open live demo <ArrowRight size={14} /></Button>
+            <Button tone="primary" onClick={() => onGo("dashboard", "Workspace loaded")}>Get started <ArrowRight size={14} /></Button>
             <Button onClick={() => onGo("reports")}>See the reports</Button>
           </div>
         </motion.div>
@@ -2506,7 +2506,7 @@ function LandingPage({
             <span className="section-label">Account</span>
             <button onClick={() => onGo("signin")} type="button">Sign in</button>
             <button onClick={() => onGo("register")} type="button">Create account</button>
-            <button onClick={() => onGo("dashboard")} type="button">Live demo</button>
+            <button onClick={() => onGo("dashboard")} type="button">Dashboard</button>
             <button onClick={() => onGo("reports")} type="button">Reports</button>
           </div>
         </nav>
